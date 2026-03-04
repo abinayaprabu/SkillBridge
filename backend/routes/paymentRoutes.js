@@ -22,10 +22,13 @@ router.post(
   createOrder
 );
 
-// ✅ Verify payment (NO AUTH HERE)
-router.post("/verify", verifyPayment);
+router.post(
+  "/verify",
+  protect,
+  authorizeRoles("buyer", "instructor", "admin"),
+  verifyPayment
+);
 
-// ✅ Buyer + Instructor + Admin can see their payments
 router.get(
   "/my-payments",
   protect,
@@ -33,7 +36,6 @@ router.get(
   getMyPayments
 );
 
-// ✅ Buyer + Instructor + Admin can download invoice
 router.get(
   "/invoice/:id",
   protect,
