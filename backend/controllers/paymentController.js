@@ -1,49 +1,8 @@
-import Razorpay from "razorpay";
-import dotenv from "dotenv";
-import crypto from "crypto";
-import PDFDocument from "pdfkit";
+import jwt from "jsonwebtoken";
 
-import Payment from "../models/Payment.js";
-import User from "../models/User.js";
-import Skill from "../models/Skill.js";
-import { sendEmail } from "../utils/sendEmail.js";
-
-dotenv.config();
-
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
-
-
-// ================= CREATE ORDER =================
-export const createOrder = async (req, res) => {
-  try {
-    const { amount } = req.body;
-
-    const options = {
-      amount: amount * 100,
-      currency: "INR",
-      receipt: "receipt_" + Date.now(),
-    };
-
-    const order = await razorpay.orders.create(options);
-
-    res.json({
-      orderId: order.id,
-      amount: order.amount,
-      key: process.env.RAZORPAY_KEY_ID,
-    });
-
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-
-// ================= VERIFY PAYMENT =================
 export const verifyPayment = async (req, res) => {
   try {
+
     const {
       razorpay_order_id,
       razorpay_payment_id,
@@ -52,12 +11,22 @@ export const verifyPayment = async (req, res) => {
       courses
     } = req.body;
 
-    // 🛑 Safety check
-    if (!req.user) {
-      return res.status(401).json({ message: "User not authenticated" });
+    // 🔐 Get token manually
+    const token = req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+      return res.status(401).json({ message: "Token missing" });
     }
 
-    // 🔐 Verify Signature
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    // 🔐 Verify Razorpay signature
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 
     const expectedSignature = crypto
@@ -72,9 +41,9 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // ✅ Save Payment
+    // ✅ Save payment
     const payment = await Payment.create({
-      user: req.user._id,
+      user: user._id,
       orderId: razorpay_order_id,
       paymentId: razorpay_payment_id,
       amount,
@@ -82,7 +51,7 @@ export const verifyPayment = async (req, res) => {
       courses: Array.isArray(courses) ? courses : []
     });
 
-    // ✅ Add Purchased Courses to User
+    // ✅ Add purchased courses to user
     if (Array.isArray(courses) && courses.length > 0) {
 
       const skillDocs = await Skill.find({
@@ -92,7 +61,7 @@ export const verifyPayment = async (req, res) => {
       const skillIds = skillDocs.map(skill => skill._id);
 
       await User.findByIdAndUpdate(
-        req.user._id,
+        user._id,
         {
           $addToSet: {
             purchasedCourses: { $each: skillIds }
@@ -101,11 +70,11 @@ export const verifyPayment = async (req, res) => {
       );
     }
 
-    // ✅ Send Confirmation Email (SAFE)
+    // ✅ Send confirmation email
     try {
-      const user = await User.findById(req.user._id);
 
       if (user?.email) {
+
         await sendEmail(
           user.email,
           "Course Purchase Successful 🎉",
@@ -119,11 +88,11 @@ Amount Paid: ₹ ${amount}
 
 Thank you for choosing SkillBridge 🚀`
         );
+
       }
 
     } catch (emailError) {
       console.error("Email sending failed:", emailError.message);
-      // ❗ Do NOT throw error
     }
 
     return res.json({
@@ -132,78 +101,12 @@ Thank you for choosing SkillBridge 🚀`
     });
 
   } catch (error) {
+
     console.error("Verify Payment Error:", error);
-    return res.status(500).json({ message: error.message });
-  }
-};
 
+    return res.status(500).json({
+      message: error.message
+    });
 
-// ================= GET MY PAYMENTS =================
-export const getMyPayments = async (req, res) => {
-  try {
-    const payments = await Payment.find({
-      user: req.user._id
-    }).sort({ createdAt: -1 });
-
-    res.json(payments);
-
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-
-// ================= DOWNLOAD INVOICE =================
-export const downloadInvoice = async (req, res) => {
-  try {
-    const payment = await Payment.findById(req.params.id)
-      .populate("user");
-
-    if (!payment) {
-      return res.status(404).json({ message: "Payment not found" });
-    }
-
-    const doc = new PDFDocument({ margin: 50 });
-
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename=invoice-${payment._id}.pdf`
-    );
-
-    doc.pipe(res);
-
-    // Header
-    doc.fontSize(20).text("SkillBridge Invoice", { align: "center" });
-    doc.moveDown();
-
-    doc.fontSize(12);
-    doc.text(`Invoice ID: ${payment._id}`);
-    doc.text(`Customer: ${payment.user.name}`);
-    doc.text(`Email: ${payment.user.email}`);
-    doc.text(`Date: ${payment.createdAt.toLocaleString()}`);
-    doc.moveDown();
-
-    // Courses Section
-    doc.fontSize(14).text("Purchased Courses:", { underline: true });
-    doc.moveDown(0.5);
-
-    if (payment.courses && payment.courses.length > 0) {
-      payment.courses.forEach((course, index) => {
-        doc.text(`${index + 1}. ${course.title} — ₹ ${course.price}`);
-      });
-    } else {
-      doc.text("No course details available.");
-    }
-
-    doc.moveDown();
-    doc.text(`Total Amount Paid: ₹ ${payment.amount}`);
-    doc.text(`Status: ${payment.status}`);
-
-    doc.end();
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Invoice generation failed" });
   }
 };
