@@ -72,31 +72,41 @@ export default function Payments() {
         name: "SkillBridge",
         description: "Course Purchase",
         order_id: data.orderId,
-      handler: async function (response) {
 
-  try {
+        handler: async function (response) {
 
-    await axios.post("/payments/verify", {
-      razorpay_order_id: response.razorpay_order_id,
-      razorpay_payment_id: response.razorpay_payment_id,
-      razorpay_signature: response.razorpay_signature,
-      amount: total,
-      courses: cartItems.map(item => ({
-        title: item.title,
-        price: item.price
-      }))
-    });
+          try {
 
-    clearCart();
-    await fetchPayments();
+            await axios.post(
+              "/payments/verify",
+              {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                amount: total,
+                courses: cartItems.map(item => ({
+                  title: item.title,
+                  price: item.price
+                }))
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`
+                }
+              }
+            );
 
-    alert("Payment Successful 🎉");
+            clearCart();
+            await fetchPayments();
 
-  } catch (err) {
-    console.error(err);
-    alert("Payment verification failed");
-  }
-},
+            alert("Payment Successful 🎉");
+
+          } catch (err) {
+            console.error("Verify error:", err);
+            alert("Payment verification failed");
+          }
+        },
+
         theme: {
           color: "#7c3aed",
         },
@@ -111,6 +121,7 @@ export default function Payments() {
       razor.open();
 
     } catch (error) {
+      console.error(error);
       alert("Payment failed");
     } finally {
       setLoading(false);
