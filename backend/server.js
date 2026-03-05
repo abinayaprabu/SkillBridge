@@ -20,7 +20,7 @@ const app = express();
 // Allow frontend
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://skill-bridge-6br51qohu-abinayaprabus-projects.vercel.app"
+  "https://skill-bridge-asua5bipm-abinayaprabus-projects.vercel.app"
 ];
 
 app.use(
