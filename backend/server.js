@@ -17,27 +17,26 @@ connectDB();
 
 const app = express();
 
-// Allow frontend
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://skill-bridge-asua5bipm-abinayaprabus-projects.vercel.app"
-];
+/* ================= CORS FIX ================= */
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS not allowed"));
-      }
-    }
+    origin: [
+      "http://localhost:5173",
+      "https://skill-bridge-asua5bipm-abinayaprabus-projects.vercel.app"
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
 
+/* ============================================ */
+
 app.use(express.json());
 
-// uploads folder
+/* ================= UPLOADS ================= */
+
 const uploadPath = path.resolve("uploads");
 
 if (!fs.existsSync(uploadPath)) {
@@ -46,15 +45,21 @@ if (!fs.existsSync(uploadPath)) {
 
 app.use("/uploads", express.static(uploadPath));
 
+/* =========================================== */
+
 app.get("/", (req, res) => {
   res.send("SkillBridge API Running");
 });
+
+/* ================= ROUTES ================= */
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/skills", skillRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/payments", paymentRoutes);
+
+/* ========================================== */
 
 const PORT = process.env.PORT || 5000;
 
