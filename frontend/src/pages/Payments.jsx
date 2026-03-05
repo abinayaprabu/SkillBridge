@@ -28,6 +28,7 @@ export default function Payments() {
 
   const downloadInvoice = async (paymentId) => {
     try {
+
       const response = await axios.get(
         `/payments/invoice/${paymentId}`,
         { responseType: "blob" }
@@ -60,7 +61,7 @@ export default function Payments() {
 
       setLoading(true);
 
-      // ✅ Create order
+      // ✅ Create Razorpay order
       const { data } = await axios.post(
         "/payments/create-order",
         { amount: total }
@@ -78,17 +79,27 @@ export default function Payments() {
 
           try {
 
-            // ✅ Verify payment
-            await axios.post("/payments/verify", {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              amount: total,
-              courses: cartItems.map(item => ({
-                title: item.title,
-                price: item.price
-              }))
-            });
+            const token = localStorage.getItem("token");
+
+            // ✅ Send token explicitly
+            await axios.post(
+              "/payments/verify",
+              {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                amount: total,
+                courses: cartItems.map(item => ({
+                  title: item.title,
+                  price: item.price
+                }))
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`
+                }
+              }
+            );
 
             clearCart();
             await fetchPayments();
@@ -96,8 +107,10 @@ export default function Payments() {
             alert("Payment Successful 🎉");
 
           } catch (err) {
+
             console.error("Verify error:", err);
             alert("Payment verification failed");
+
           }
         },
 
@@ -115,10 +128,14 @@ export default function Payments() {
       razor.open();
 
     } catch (error) {
+
       console.error(error);
       alert("Payment failed");
+
     } finally {
+
       setLoading(false);
+
     }
   };
 
@@ -132,6 +149,7 @@ export default function Payments() {
 
       {cartItems.length > 0 && (
         <div className="bg-white p-6 rounded-xl shadow mb-10">
+
           <h2 className="font-bold mb-4">Checkout</h2>
 
           <p className="mb-4 font-semibold">
@@ -145,6 +163,7 @@ export default function Payments() {
           >
             {loading ? "Processing..." : "Pay Now"}
           </button>
+
         </div>
       )}
 
@@ -156,12 +175,15 @@ export default function Payments() {
         <p>No payments yet.</p>
       ) : (
         history.map((payment) => (
+
           <div
             key={payment._id}
             className="bg-white p-6 rounded-xl shadow mb-6"
           >
+
             <p><strong>Amount:</strong> ₹ {payment.amount}</p>
             <p><strong>Status:</strong> {payment.status}</p>
+
             <p>
               <strong>Date:</strong>{" "}
               {new Date(payment.createdAt).toLocaleString()}
@@ -169,11 +191,13 @@ export default function Payments() {
 
             {payment.courses?.length > 0 && (
               <ul className="mt-2 list-disc ml-6">
+
                 {payment.courses.map((course, index) => (
                   <li key={index}>
                     {course.title} — ₹ {course.price}
                   </li>
                 ))}
+
               </ul>
             )}
 
@@ -185,6 +209,7 @@ export default function Payments() {
             </button>
 
           </div>
+
         ))
       )}
 
