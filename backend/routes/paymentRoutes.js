@@ -16,7 +16,7 @@ router.post("/create-order", protect, createOrder);
 // verify payment
 router.post("/verify", protect, verifyPayment);
 
-// get payment history
+// payment history
 router.get("/my-payments", protect, getMyPayments);
 
 // download invoice
