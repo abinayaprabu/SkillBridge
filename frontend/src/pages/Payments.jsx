@@ -1,4 +1,4 @@
-javascript
+
 import { useEffect, useState } from "react";
 import { useCart } from "../context/CartContext";
 import axios from "../utils/axios";
