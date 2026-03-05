@@ -16,21 +16,15 @@ export default function Payments() {
 
   const fetchPayments = async () => {
     try {
-
       const { data } = await axios.get("/payments/my-payments");
-
       setHistory(data);
-
     } catch (error) {
-
       console.error("Fetch Payments Error:", error);
-
     }
   };
 
   const downloadInvoice = async (paymentId) => {
     try {
-
       const response = await axios.get(`/payments/invoice/${paymentId}`, {
         responseType: "blob",
       });
@@ -38,22 +32,16 @@ export default function Payments() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
 
       const link = document.createElement("a");
-
       link.href = url;
       link.setAttribute("download", `invoice-${paymentId}.pdf`);
 
       document.body.appendChild(link);
-
       link.click();
-
       link.remove();
 
     } catch (error) {
-
       console.error("Invoice Download Error:", error);
-
       alert("Failed to download invoice");
-
     }
   };
 
@@ -64,16 +52,23 @@ export default function Payments() {
     const token = localStorage.getItem("token");
 
     if (!token) {
-      return alert("Please login again");
+      return alert("Session expired. Please login again.");
     }
 
     try {
 
       setLoading(true);
 
-      const { data } = await axios.post("/payments/create-order", {
-        amount: total
-      });
+      // STEP 1: Create Razorpay Order
+      const { data } = await axios.post(
+        "/payments/create-order",
+        { amount: total },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       const options = {
         key: data.key,
@@ -87,6 +82,7 @@ export default function Payments() {
 
           try {
 
+            // STEP 2: Verify Payment
             await axios.post(
               "/payments/verify",
               {
@@ -94,15 +90,15 @@ export default function Payments() {
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
                 amount: total,
-                courses: cartItems.map(item => ({
+                courses: cartItems.map((item) => ({
                   title: item.title,
-                  price: item.price
-                }))
+                  price: item.price,
+                })),
               },
               {
                 headers: {
-                  Authorization: `Bearer ${token}`
-                }
+                  Authorization: `Bearer ${token}`,
+                },
               }
             );
 
@@ -122,21 +118,20 @@ export default function Payments() {
         },
 
         theme: {
-          color: "#7c3aed"
+          color: "#7c3aed",
         },
 
         modal: {
-          ondismiss: () => setLoading(false)
-        }
-
+          ondismiss: () => setLoading(false),
+        },
       };
 
       if (!window.Razorpay) {
-        return alert("Razorpay SDK not loaded");
+        alert("Razorpay SDK failed to load.");
+        return;
       }
 
       const razor = new window.Razorpay(options);
-
       razor.open();
 
     } catch (error) {
@@ -159,7 +154,6 @@ export default function Payments() {
       <h1 className="text-3xl font-bold mb-8">Payments 💳</h1>
 
       {cartItems.length > 0 && (
-
         <div className="bg-white p-6 rounded-xl shadow mb-10 border-l-4 border-purple-600">
 
           <h2 className="font-bold mb-4">Checkout Summary</h2>
@@ -177,7 +171,6 @@ export default function Payments() {
           </button>
 
         </div>
-
       )}
 
       <h2 className="text-2xl font-semibold mb-4 text-gray-700">
@@ -185,16 +178,13 @@ export default function Payments() {
       </h2>
 
       {history.length === 0 ? (
-
         <p className="text-gray-500 italic">
           No transaction history found.
         </p>
-
       ) : (
-
         <div className="grid gap-6">
 
-          {history.map(payment => (
+          {history.map((payment) => (
 
             <div
               key={payment._id}
@@ -229,7 +219,6 @@ export default function Payments() {
           ))}
 
         </div>
-
       )}
 
     </div>
