@@ -17,21 +17,35 @@ connectDB();
 
 const app = express();
 
-/* ================= CORS FIX ================= */
+/* ================= CORS ================= */
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://skill-bridge.vercel.app",
+];
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://skill-bridge-asua5bipm-abinayaprabus-projects.vercel.app"
-    ],
+    origin: function (origin, callback) {
+
+      // allow requests with no origin (mobile apps / postman)
+      if (!origin) return callback(null, true);
+
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app")
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS not allowed"));
+      }
+    },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
 
-/* ============================================ */
+/* ======================================== */
 
 app.use(express.json());
 
@@ -48,7 +62,7 @@ app.use("/uploads", express.static(uploadPath));
 /* =========================================== */
 
 app.get("/", (req, res) => {
-  res.send("SkillBridge API Running");
+  res.send("SkillBridge API Running 🚀");
 });
 
 /* ================= ROUTES ================= */
@@ -61,8 +75,20 @@ app.use("/api/payments", paymentRoutes);
 
 /* ========================================== */
 
+/* ============== ERROR HANDLER ============== */
+
+app.use((err, req, res, next) => {
+  console.error("SERVER ERROR:", err.message);
+
+  res.status(500).json({
+    message: "Internal Server Error",
+  });
+});
+
+/* ========================================== */
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
