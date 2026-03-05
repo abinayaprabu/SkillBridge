@@ -1,3 +1,4 @@
+
 import Razorpay from "razorpay";
 import dotenv from "dotenv";
 import crypto from "crypto";
@@ -19,31 +20,43 @@ const razorpay = new Razorpay({
 // ================= CREATE ORDER =================
 export const createOrder = async (req, res) => {
   try {
+
     const { amount } = req.body;
+
+    if (!amount) {
+      return res.status(400).json({ message: "Amount is required" });
+    }
 
     const options = {
       amount: amount * 100,
       currency: "INR",
-      receipt: "receipt_" + Date.now(),
+      receipt: `receipt_${Date.now()}`,
     };
 
     const order = await razorpay.orders.create(options);
 
-    res.json({
+    return res.json({
       orderId: order.id,
       amount: order.amount,
       key: process.env.RAZORPAY_KEY_ID,
     });
 
   } catch (error) {
-    res.status(500).json({ message: error.message });
+
+    console.error("Create Order Error:", error);
+    return res.status(500).json({
+      message: "Failed to create Razorpay order",
+    });
+
   }
 };
 
 
 // ================= VERIFY PAYMENT =================
 export const verifyPayment = async (req, res) => {
+
   try {
+
     const {
       razorpay_order_id,
       razorpay_payment_id,
@@ -52,12 +65,13 @@ export const verifyPayment = async (req, res) => {
       courses
     } = req.body;
 
-    // 🛑 Safety check
     if (!req.user) {
-      return res.status(401).json({ message: "User not authenticated" });
+      return res.status(401).json({
+        message: "User not authenticated",
+      });
     }
 
-    // 🔐 Verify Signature
+    // Verify Razorpay signature
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 
     const expectedSignature = crypto
@@ -72,18 +86,18 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // ✅ Save Payment
+    // Save payment
     const payment = await Payment.create({
       user: req.user._id,
       orderId: razorpay_order_id,
       paymentId: razorpay_payment_id,
       amount,
       status: "success",
-      courses: Array.isArray(courses) ? courses : []
+      courses: Array.isArray(courses) ? courses : [],
     });
 
-    // ✅ Add Purchased Courses to User
-    if (Array.isArray(courses) && courses.length > 0) {
+    // Add purchased courses
+    if (courses && courses.length > 0) {
 
       const skillDocs = await Skill.find({
         title: { $in: courses.map(c => c.title) }
@@ -101,11 +115,13 @@ export const verifyPayment = async (req, res) => {
       );
     }
 
-    // ✅ Send Confirmation Email (SAFE)
+    // Send confirmation email
     try {
+
       const user = await User.findById(req.user._id);
 
       if (user?.email) {
+
         await sendEmail(
           user.email,
           "Course Purchase Successful 🎉",
@@ -119,48 +135,70 @@ Amount Paid: ₹ ${amount}
 
 Thank you for choosing SkillBridge 🚀`
         );
+
       }
 
     } catch (emailError) {
+
       console.error("Email sending failed:", emailError.message);
-      // ❗ Do NOT throw error
+
     }
 
     return res.json({
       success: true,
-      message: "Payment verified, saved & courses added",
+      message: "Payment verified and saved successfully",
+      payment,
     });
 
   } catch (error) {
+
     console.error("Verify Payment Error:", error);
-    return res.status(500).json({ message: error.message });
+
+    return res.status(500).json({
+      message: "Payment verification failed",
+    });
+
   }
+
 };
 
 
 // ================= GET MY PAYMENTS =================
 export const getMyPayments = async (req, res) => {
+
   try {
+
     const payments = await Payment.find({
       user: req.user._id
     }).sort({ createdAt: -1 });
 
-    res.json(payments);
+    return res.json(payments);
 
   } catch (error) {
-    res.status(500).json({ message: error.message });
+
+    console.error("Get Payments Error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch payments",
+    });
+
   }
+
 };
 
 
 // ================= DOWNLOAD INVOICE =================
 export const downloadInvoice = async (req, res) => {
+
   try {
+
     const payment = await Payment.findById(req.params.id)
       .populate("user");
 
     if (!payment) {
-      return res.status(404).json({ message: "Payment not found" });
+      return res.status(404).json({
+        message: "Payment not found",
+      });
     }
 
     const doc = new PDFDocument({ margin: 50 });
@@ -173,7 +211,6 @@ export const downloadInvoice = async (req, res) => {
 
     doc.pipe(res);
 
-    // Header
     doc.fontSize(20).text("SkillBridge Invoice", { align: "center" });
     doc.moveDown();
 
@@ -182,18 +219,22 @@ export const downloadInvoice = async (req, res) => {
     doc.text(`Customer: ${payment.user.name}`);
     doc.text(`Email: ${payment.user.email}`);
     doc.text(`Date: ${payment.createdAt.toLocaleString()}`);
+
     doc.moveDown();
 
-    // Courses Section
     doc.fontSize(14).text("Purchased Courses:", { underline: true });
     doc.moveDown(0.5);
 
-    if (payment.courses && payment.courses.length > 0) {
+    if (payment.courses?.length > 0) {
+
       payment.courses.forEach((course, index) => {
         doc.text(`${index + 1}. ${course.title} — ₹ ${course.price}`);
       });
+
     } else {
+
       doc.text("No course details available.");
+
     }
 
     doc.moveDown();
@@ -203,7 +244,14 @@ export const downloadInvoice = async (req, res) => {
     doc.end();
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Invoice generation failed" });
+
+    console.error("Invoice Error:", error);
+
+    return res.status(500).json({
+      message: "Invoice generation failed",
+    });
+
   }
+
 };
+

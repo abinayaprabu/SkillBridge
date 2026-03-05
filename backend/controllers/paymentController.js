@@ -1,3 +1,4 @@
+
 import crypto from "crypto";
 import Payment from "../models/Payment.js";
 import User from "../models/User.js";
@@ -5,6 +6,7 @@ import Skill from "../models/Skill.js";
 import { sendEmail } from "../utils/sendEmail.js";
 
 export const verifyPayment = async (req, res) => {
+
   try {
 
     const {
@@ -15,14 +17,23 @@ export const verifyPayment = async (req, res) => {
       courses
     } = req.body;
 
-    // ✅ User already available from protect middleware
+    // Ensure payment data exists
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({
+        message: "Incomplete payment details",
+      });
+    }
+
+    // User comes from protect middleware
     const user = req.user;
 
     if (!user) {
-      return res.status(401).json({ message: "User not authenticated" });
+      return res.status(401).json({
+        message: "User not authenticated",
+      });
     }
 
-    // 🔐 Verify Razorpay signature
+    // Verify Razorpay signature
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 
     const expectedSignature = crypto
@@ -37,7 +48,19 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // ✅ Save payment
+    // Prevent duplicate payments
+    const existingPayment = await Payment.findOne({
+      paymentId: razorpay_payment_id
+    });
+
+    if (existingPayment) {
+      return res.json({
+        success: true,
+        message: "Payment already recorded",
+      });
+    }
+
+    // Save payment
     const payment = await Payment.create({
       user: user._id,
       orderId: razorpay_order_id,
@@ -47,8 +70,8 @@ export const verifyPayment = async (req, res) => {
       courses: Array.isArray(courses) ? courses : []
     });
 
-    // ✅ Add purchased courses to user
-    if (Array.isArray(courses) && courses.length > 0) {
+    // Add purchased courses
+    if (courses && courses.length > 0) {
 
       const skillDocs = await Skill.find({
         title: { $in: courses.map(c => c.title) }
@@ -66,10 +89,10 @@ export const verifyPayment = async (req, res) => {
       );
     }
 
-    // ✅ Send confirmation email
+    // Send email (non-blocking)
     try {
 
-      if (user?.email) {
+      if (user.email) {
 
         await sendEmail(
           user.email,
@@ -93,7 +116,8 @@ Thank you for choosing SkillBridge 🚀`
 
     return res.json({
       success: true,
-      message: "Payment verified, saved & courses added",
+      message: "Payment verified and saved",
+      payment
     });
 
   } catch (error) {
@@ -101,8 +125,10 @@ Thank you for choosing SkillBridge 🚀`
     console.error("Verify Payment Error:", error);
 
     return res.status(500).json({
-      message: error.message
+      message: "Payment verification failed"
     });
 
   }
+
 };
+

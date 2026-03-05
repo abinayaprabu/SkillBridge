@@ -1,3 +1,4 @@
+javascript
 import { useEffect, useState } from "react";
 import { useCart } from "../context/CartContext";
 import axios from "../utils/axios";
@@ -28,7 +29,6 @@ export default function Payments() {
 
   const downloadInvoice = async (paymentId) => {
     try {
-
       const response = await axios.get(
         `/payments/invoice/${paymentId}`,
         { responseType: "blob" }
@@ -61,7 +61,7 @@ export default function Payments() {
 
       setLoading(true);
 
-      // ✅ Create Razorpay order
+      // Create Razorpay order
       const { data } = await axios.post(
         "/payments/create-order",
         { amount: total }
@@ -79,27 +79,16 @@ export default function Payments() {
 
           try {
 
-            const token = localStorage.getItem("token");
-
-            // ✅ Send token explicitly
-            await axios.post(
-              "/payments/verify",
-              {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                amount: total,
-                courses: cartItems.map(item => ({
-                  title: item.title,
-                  price: item.price
-                }))
-              },
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`
-                }
-              }
-            );
+            await axios.post("/payments/verify", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              amount: total,
+              courses: cartItems.map(item => ({
+                title: item.title,
+                price: item.price
+              }))
+            });
 
             clearCart();
             await fetchPayments();
@@ -107,10 +96,8 @@ export default function Payments() {
             alert("Payment Successful 🎉");
 
           } catch (err) {
-
             console.error("Verify error:", err);
             alert("Payment verification failed");
-
           }
         },
 
@@ -216,3 +203,4 @@ export default function Payments() {
     </div>
   );
 }
+
