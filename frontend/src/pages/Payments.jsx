@@ -87,6 +87,7 @@ export default function Payments() {
       });
 
       const options = {
+
         key: data.key,
         amount: data.amount,
         currency: "INR",
@@ -98,16 +99,24 @@ export default function Payments() {
 
           try {
 
-            await axios.post("/payments/verify", {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              amount: total,
-              courses: cartItems.map((item) => ({
-                title: item.title,
-                price: item.price
-              }))
-            });
+            await axios.post(
+              "/payments/verify",
+              {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                amount: total,
+                courses: cartItems.map((item) => ({
+                  title: item.title,
+                  price: item.price
+                }))
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`
+                }
+              }
+            );
 
             clearCart();
 
