@@ -4,10 +4,9 @@ const instance = axios.create({
   baseURL: `${import.meta.env.VITE_API_URL}/api`,
 });
 
-// Automatically attach JWT token to every request
+// attach token automatically
 instance.interceptors.request.use(
   (config) => {
-
     const token = localStorage.getItem("token");
 
     if (token) {
@@ -16,9 +15,7 @@ instance.interceptors.request.use(
 
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 export default instance;

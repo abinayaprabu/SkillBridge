@@ -8,7 +8,10 @@ export default function Payments() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const total = cartItems.reduce((acc, item) => acc + Number(item.price || 0), 0);
+  const total = cartItems.reduce(
+    (acc, item) => acc + Number(item.price || 0),
+    0
+  );
 
   useEffect(() => {
     fetchPayments();
@@ -18,28 +21,39 @@ export default function Payments() {
     try {
 
       const { data } = await axios.get("/payments/my-payments");
+
       setHistory(data);
 
     } catch (error) {
+
       console.error("Fetch Payments Error:", error);
+
+      if (error.response?.status === 401) {
+        alert("Session expired. Please login again.");
+      }
+
     }
   };
 
   const downloadInvoice = async (paymentId) => {
     try {
 
-      const response = await axios.get(`/payments/invoice/${paymentId}`, {
-        responseType: "blob"
-      });
+      const response = await axios.get(
+        `/payments/invoice/${paymentId}`,
+        { responseType: "blob" }
+      );
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
 
       const link = document.createElement("a");
+
       link.href = url;
       link.setAttribute("download", `invoice-${paymentId}.pdf`);
 
       document.body.appendChild(link);
+
       link.click();
+
       link.remove();
 
     } catch (error) {
@@ -52,13 +66,22 @@ export default function Payments() {
 
   const handlePayment = async () => {
 
-    if (!cartItems.length) return alert("Cart is empty");
+    if (!cartItems.length) {
+      alert("Cart is empty");
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      alert("Please login again");
+      return;
+    }
 
     try {
 
       setLoading(true);
 
-      // Create order
       const { data } = await axios.post("/payments/create-order", {
         amount: total
       });
@@ -87,14 +110,19 @@ export default function Payments() {
             });
 
             clearCart();
+
             fetchPayments();
 
             alert("Payment Successful 🎉");
 
           } catch (err) {
 
-            console.error("Verification Error:", err.response?.data || err.message);
-            alert(err.response?.data?.message || "Payment verification failed");
+            console.error("Verification Error:", err);
+
+            alert(
+              err.response?.data?.message ||
+              "Payment verification failed"
+            );
 
           }
 
@@ -116,12 +144,17 @@ export default function Payments() {
       }
 
       const razor = new window.Razorpay(options);
+
       razor.open();
 
     } catch (error) {
 
       console.error("Payment Error:", error);
-      alert(error.response?.data?.message || "Payment initiation failed");
+
+      alert(
+        error.response?.data?.message ||
+        "Payment initiation failed"
+      );
 
     } finally {
 
@@ -132,15 +165,20 @@ export default function Payments() {
   };
 
   return (
+
     <div className="p-10 min-h-screen">
 
-      <h1 className="text-3xl font-bold mb-8">Payments 💳</h1>
+      <h1 className="text-3xl font-bold mb-8">
+        Payments 💳
+      </h1>
 
       {cartItems.length > 0 && (
 
         <div className="bg-white p-6 rounded-xl shadow mb-10 border-l-4 border-purple-600">
 
-          <h2 className="font-bold mb-4">Checkout Summary</h2>
+          <h2 className="font-bold mb-4">
+            Checkout Summary
+          </h2>
 
           <p className="mb-4 font-semibold text-xl">
             Total: ₹ {total}
@@ -211,5 +249,7 @@ export default function Payments() {
       )}
 
     </div>
+
   );
+
 }
