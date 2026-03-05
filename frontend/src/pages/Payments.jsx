@@ -17,52 +17,35 @@ export default function Payments() {
   const fetchPayments = async () => {
     try {
 
-      const token = localStorage.getItem("token");
-
-      const { data } = await axios.get("/payments/my-payments", {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      const { data } = await axios.get("/payments/my-payments");
 
       setHistory(data);
 
     } catch (error) {
-
       console.error("Fetch Payments Error:", error);
-
     }
   };
 
   const downloadInvoice = async (paymentId) => {
     try {
 
-      const token = localStorage.getItem("token");
-
       const response = await axios.get(`/payments/invoice/${paymentId}`, {
-        responseType: "blob",
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        responseType: "blob"
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
 
       const link = document.createElement("a");
-
       link.href = url;
       link.setAttribute("download", `invoice-${paymentId}.pdf`);
 
       document.body.appendChild(link);
-
       link.click();
-
       link.remove();
 
     } catch (error) {
 
       console.error("Invoice Download Error:", error);
-
       alert("Failed to download invoice");
 
     }
@@ -76,23 +59,10 @@ export default function Payments() {
 
       setLoading(true);
 
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        alert("Session expired. Please login again.");
-        return;
-      }
-
       // STEP 1: CREATE ORDER
-      const { data } = await axios.post(
-        "/payments/create-order",
-        { amount: total },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
+      const { data } = await axios.post("/payments/create-order", {
+        amount: total
+      });
 
       const options = {
         key: data.key,
@@ -106,26 +76,16 @@ export default function Payments() {
 
           try {
 
-            const freshToken = localStorage.getItem("token");
-
-            await axios.post(
-              "/payments/verify",
-              {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                amount: total,
-                courses: cartItems.map((item) => ({
-                  title: item.title,
-                  price: item.price
-                }))
-              },
-              {
-                headers: {
-                  Authorization: `Bearer ${freshToken}`
-                }
-              }
-            );
+            await axios.post("/payments/verify", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              amount: total,
+              courses: cartItems.map((item) => ({
+                title: item.title,
+                price: item.price
+              }))
+            });
 
             clearCart();
             fetchPayments();
@@ -135,7 +95,6 @@ export default function Payments() {
           } catch (err) {
 
             console.error("Verification Error:", err.response?.data || err.message);
-
             alert(err.response?.data?.message || "Payment verification failed");
 
           }
@@ -158,13 +117,11 @@ export default function Payments() {
       }
 
       const razor = new window.Razorpay(options);
-
       razor.open();
 
     } catch (error) {
 
       console.error("Payment Error:", error);
-
       alert(error.response?.data?.message || "Payment initiation failed");
 
     } finally {
