@@ -17,7 +17,13 @@ export default function Payments() {
   const fetchPayments = async () => {
     try {
 
-      const { data } = await axios.get("/payments/my-payments");
+      const token = localStorage.getItem("token");
+
+      const { data } = await axios.get("/payments/my-payments", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
 
       setHistory(data);
 
@@ -29,8 +35,13 @@ export default function Payments() {
   const downloadInvoice = async (paymentId) => {
     try {
 
+      const token = localStorage.getItem("token");
+
       const response = await axios.get(`/payments/invoice/${paymentId}`, {
-        responseType: "blob"
+        responseType: "blob",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -59,10 +70,23 @@ export default function Payments() {
 
       setLoading(true);
 
-      // STEP 1: CREATE ORDER
-      const { data } = await axios.post("/payments/create-order", {
-        amount: total
-      });
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        alert("Session expired. Please login again.");
+        return;
+      }
+
+      // CREATE ORDER
+      const { data } = await axios.post(
+        "/payments/create-order",
+        { amount: total },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
 
       const options = {
         key: data.key,
@@ -76,16 +100,26 @@ export default function Payments() {
 
           try {
 
-            await axios.post("/payments/verify", {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              amount: total,
-              courses: cartItems.map((item) => ({
-                title: item.title,
-                price: item.price
-              }))
-            });
+            const freshToken = localStorage.getItem("token");
+
+            await axios.post(
+              "/payments/verify",
+              {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                amount: total,
+                courses: cartItems.map((item) => ({
+                  title: item.title,
+                  price: item.price
+                }))
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${freshToken}`
+                }
+              }
+            );
 
             clearCart();
             fetchPayments();
