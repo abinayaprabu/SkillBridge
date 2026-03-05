@@ -4,7 +4,9 @@ const instance = axios.create({
   baseURL: `${import.meta.env.VITE_API_URL}/api`,
 });
 
+// Attach token automatically
 instance.interceptors.request.use((config) => {
+
   const token = localStorage.getItem("token");
 
   if (token) {
@@ -12,6 +14,7 @@ instance.interceptors.request.use((config) => {
   }
 
   return config;
+
 });
 
 export default instance;
