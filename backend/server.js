@@ -1,3 +1,4 @@
+
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -17,16 +18,16 @@ connectDB();
 
 const app = express();
 
+// ✅ FIXED CORS (works with Vercel + localhost)
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://skill-bridge-eight-beta.vercel.app"
-    ],
+    origin: true,
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
+
 app.use(express.json());
 
 // ✅ Create uploads folder if not exists
@@ -43,6 +44,7 @@ app.get("/", (req, res) => {
   res.send("SkillBridge API Running");
 });
 
+// ✅ API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/skills", skillRoutes);
