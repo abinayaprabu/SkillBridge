@@ -1,4 +1,3 @@
-
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -18,13 +17,26 @@ connectDB();
 
 const app = express();
 
-// ✅ Correct CORS configuration
+// ✅ Allowed frontend origins
+const allowedOrigins = [
+  "http://localhost:5173", 
+  "https://skill-bridge-xxxxx.vercel.app"  // replace with your real Vercel URL
+];
+
+// ✅ Correct CORS setup
 app.use(
   cors({
     origin: function (origin, callback) {
-      callback(null, origin);
-    },
-    credentials: true
+
+      // allow requests with no origin (like Postman)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    }
   })
 );
 
@@ -41,7 +53,7 @@ if (!fs.existsSync(uploadPath)) {
 app.use("/uploads", express.static(uploadPath));
 
 app.get("/", (req, res) => {
-  res.send("SkillBridge API Running");
+  res.send("SkillBridge API Running 🚀");
 });
 
 // Routes
@@ -56,4 +68,3 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
