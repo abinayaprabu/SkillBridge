@@ -61,6 +61,12 @@ export default function Payments() {
 
     if (!cartItems.length) return alert("Cart is empty");
 
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      return alert("Please login again");
+    }
+
     try {
 
       setLoading(true);
@@ -81,16 +87,24 @@ export default function Payments() {
 
           try {
 
-            await axios.post("/payments/verify", {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              amount: total,
-              courses: cartItems.map(item => ({
-                title: item.title,
-                price: item.price
-              }))
-            });
+            await axios.post(
+              "/payments/verify",
+              {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                amount: total,
+                courses: cartItems.map(item => ({
+                  title: item.title,
+                  price: item.price
+                }))
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`
+                }
+              }
+            );
 
             clearCart();
             fetchPayments();
