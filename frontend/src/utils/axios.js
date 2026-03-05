@@ -4,16 +4,18 @@ const instance = axios.create({
   baseURL: `${import.meta.env.VITE_API_URL}/api`,
 });
 
-// attach token automatically
+// attach JWT automatically
 instance.interceptors.request.use(
   (config) => {
+
     const token = localStorage.getItem("token");
 
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token.trim()}`;
     }
 
     return config;
+
   },
   (error) => Promise.reject(error)
 );
