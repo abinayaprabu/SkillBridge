@@ -6,6 +6,7 @@ import { sendEmail } from "../utils/sendEmail.js";
 
 export const verifyPayment = async (req, res) => {
   try {
+
     const {
       razorpay_order_id,
       razorpay_payment_id,
@@ -14,7 +15,12 @@ export const verifyPayment = async (req, res) => {
       courses
     } = req.body;
 
-    // 1. Validation: Ensure all Razorpay fields are present
+    // DEBUG LOGS (very important for deployment)
+    console.log("VERIFY BODY:", req.body);
+    console.log("AUTH HEADER:", req.headers.authorization);
+    console.log("USER:", req.user);
+
+    // 1️⃣ Validate Razorpay fields
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({
         success: false,
@@ -22,38 +28,50 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // 2. Authentication: Ensure user exists (from protect middleware)
+    // 2️⃣ Ensure user exists (protect middleware)
     const user = req.user;
+
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "User context missing. Please log in again.",
+        message: "User context missing. Please login again.",
       });
     }
 
-    // 3. Signature Verification
-    // Use the secret key exactly as it is in your .env
-    const secret = process.env.RAZORPAY_KEY_SECRET;
-    const generated_signature = crypto
-      .createHmac("sha256", secret)
-      .update(razorpay_order_id + "|" + razorpay_payment_id)
+    // 3️⃣ Ensure Razorpay secret exists
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      console.error("RAZORPAY SECRET NOT FOUND");
+      return res.status(500).json({
+        success: false,
+        message: "Server configuration error."
+      });
+    }
+
+    // 4️⃣ Generate signature
+    const generatedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
-    // DEBUGGING: If verification fails, check these logs in your terminal/Render console
-    if (generated_signature !== razorpay_signature) {
-      console.error("--- SIGNATURE MISMATCH ---");
-      console.log("Generated:", generated_signature);
+    // 5️⃣ Compare signatures
+    if (generatedSignature !== razorpay_signature) {
+
+      console.error("----- SIGNATURE MISMATCH -----");
+      console.log("Generated:", generatedSignature);
       console.log("Received:", razorpay_signature);
-      console.error("--------------------------");
-      
+      console.error("------------------------------");
+
       return res.status(400).json({
         success: false,
-        message: "Invalid payment signature. Transaction could not be verified.",
+        message: "Invalid payment signature.",
       });
     }
 
-    // 4. Idempotency: Prevent duplicate processing of the same payment ID
-    const existingPayment = await Payment.findOne({ paymentId: razorpay_payment_id });
+    // 6️⃣ Prevent duplicate payments
+    const existingPayment = await Payment.findOne({
+      paymentId: razorpay_payment_id
+    });
+
     if (existingPayment) {
       return res.status(200).json({
         success: true,
@@ -61,54 +79,70 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // 5. Database Update: Save the Payment record
+    // 7️⃣ Save payment
     const payment = await Payment.create({
       user: user._id,
       orderId: razorpay_order_id,
       paymentId: razorpay_payment_id,
-      amount: amount,
+      amount,
       status: "success",
       courses: Array.isArray(courses) ? courses : []
     });
 
-    // 6. User Access: Grant access to purchased skills/courses
+    // 8️⃣ Grant course access
     if (courses && courses.length > 0) {
-      // Find the actual Skill documents by title to get their ObjectIDs
+
+      const titles = courses.map(c =>
+        typeof c === "string" ? c : c.title
+      );
+
       const skillDocs = await Skill.find({
-        title: { $in: courses.map(c => c.title) }
+        title: { $in: titles }
       });
 
       const skillIds = skillDocs.map(skill => skill._id);
 
-      // Add unique IDs to the user's purchasedCourses array
       await User.findByIdAndUpdate(
         user._id,
-        { $addToSet: { purchasedCourses: { $each: skillIds } } },
-        { new: true }
+        { $addToSet: { purchasedCourses: { $each: skillIds } } }
       );
     }
 
-    // 7. Notification: Send Confirmation Email (Async)
+    // 9️⃣ Send email (non-blocking)
     if (user.email) {
       sendEmail(
         user.email,
         "Course Purchase Successful 🎉",
-        `Hello ${user.name},\n\nYour payment of ₹${amount} was successful!\n\nOrder ID: ${razorpay_order_id}\nPayment ID: ${razorpay_payment_id}\n\nYou can now access your courses in your dashboard.\n\nThank you for choosing SkillBridge 🚀`
-      ).catch(err => console.error("Email notification failed:", err.message));
+        `Hello ${user.name},
+
+Your payment of ₹${amount} was successful!
+
+Order ID: ${razorpay_order_id}
+Payment ID: ${razorpay_payment_id}
+
+You can now access your courses in your dashboard.
+
+Thank you for choosing SkillBridge 🚀`
+      ).catch(err =>
+        console.error("Email notification failed:", err.message)
+      );
     }
 
-    // 8. Final Response
+    // 🔟 Success response
     return res.status(200).json({
       success: true,
-      message: "Payment verified and courses added to your account.",
+      message: "Payment verified and courses added.",
       payment
     });
 
   } catch (error) {
-    console.error("CRITICAL: Verify Payment Error:", error);
+
+    console.error("CRITICAL VERIFY ERROR:", error);
+
     return res.status(500).json({
       success: false,
-      message: "An internal error occurred during payment verification."
+      message: "Payment verification failed."
     });
+
   }
 };

@@ -17,46 +17,39 @@ connectDB();
 
 const app = express();
 
-// ✅ Allowed frontend origins
+// Allow frontend
 const allowedOrigins = [
-  "http://localhost:5173", 
-  "https://skill-bridge-xxxxx.vercel.app"  // replace with your real Vercel URL
+  "http://localhost:5173",
+  "https://skill-bridge-6br51qohu-abinayaprabus-projects.vercel.app"
 ];
 
-// ✅ Correct CORS setup
 app.use(
   cors({
-    origin: function (origin, callback) {
-
-      // allow requests with no origin (like Postman)
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS not allowed"));
       }
-
-      return callback(new Error("Not allowed by CORS"));
     }
   })
 );
 
 app.use(express.json());
 
-// Create uploads folder if not exists
+// uploads folder
 const uploadPath = path.resolve("uploads");
 
 if (!fs.existsSync(uploadPath)) {
   fs.mkdirSync(uploadPath);
 }
 
-// Serve uploaded images
 app.use("/uploads", express.static(uploadPath));
 
 app.get("/", (req, res) => {
-  res.send("SkillBridge API Running 🚀");
+  res.send("SkillBridge API Running");
 });
 
-// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/skills", skillRoutes);

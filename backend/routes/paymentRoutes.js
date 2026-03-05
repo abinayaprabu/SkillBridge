@@ -1,4 +1,3 @@
-
 import Razorpay from "razorpay";
 import dotenv from "dotenv";
 import crypto from "crypto";
@@ -24,11 +23,13 @@ export const createOrder = async (req, res) => {
     const { amount } = req.body;
 
     if (!amount) {
-      return res.status(400).json({ message: "Amount is required" });
+      return res.status(400).json({
+        message: "Amount is required",
+      });
     }
 
     const options = {
-      amount: amount * 100,
+      amount: amount * 100, // Razorpay expects paise
       currency: "INR",
       receipt: `receipt_${Date.now()}`,
     };
@@ -43,7 +44,8 @@ export const createOrder = async (req, res) => {
 
   } catch (error) {
 
-    console.error("Create Order Error:", error);
+    console.error("CREATE ORDER ERROR:", error);
+
     return res.status(500).json({
       message: "Failed to create Razorpay order",
     });
@@ -65,38 +67,64 @@ export const verifyPayment = async (req, res) => {
       courses
     } = req.body;
 
+    // 🔹 Ensure user exists
     if (!req.user) {
       return res.status(401).json({
-        message: "User not authenticated",
+        message: "User not authenticated"
       });
     }
 
-    // Verify Razorpay signature
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    // 🔹 Validate Razorpay fields
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({
+        message: "Missing Razorpay payment data"
+      });
+    }
+
+    // 🔹 Generate expected signature
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
 
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(body)
       .digest("hex");
 
+    // 🔹 Verify signature
     if (expectedSignature !== razorpay_signature) {
+
+      console.error("SIGNATURE MISMATCH");
+      console.log("Expected:", expectedSignature);
+      console.log("Received:", razorpay_signature);
+
       return res.status(400).json({
         success: false,
-        message: "Invalid payment signature",
+        message: "Invalid payment signature"
       });
     }
 
-    // Save payment
+    // 🔹 Prevent duplicate payment
+    const existingPayment = await Payment.findOne({
+      paymentId: razorpay_payment_id
+    });
+
+    if (existingPayment) {
+      return res.json({
+        success: true,
+        message: "Payment already processed"
+      });
+    }
+
+    // 🔹 Save payment
     const payment = await Payment.create({
       user: req.user._id,
       orderId: razorpay_order_id,
       paymentId: razorpay_payment_id,
       amount,
       status: "success",
-      courses: Array.isArray(courses) ? courses : [],
+      courses: Array.isArray(courses) ? courses : []
     });
 
-    // Add purchased courses
+    // 🔹 Add purchased courses
     if (courses && courses.length > 0) {
 
       const skillDocs = await Skill.find({
@@ -115,7 +143,7 @@ export const verifyPayment = async (req, res) => {
       );
     }
 
-    // Send confirmation email
+    // 🔹 Send confirmation email
     try {
 
       const user = await User.findById(req.user._id);
@@ -133,6 +161,8 @@ Order ID: ${razorpay_order_id}
 Payment ID: ${razorpay_payment_id}
 Amount Paid: ₹ ${amount}
 
+You can now access your purchased courses.
+
 Thank you for choosing SkillBridge 🚀`
         );
 
@@ -140,22 +170,22 @@ Thank you for choosing SkillBridge 🚀`
 
     } catch (emailError) {
 
-      console.error("Email sending failed:", emailError.message);
+      console.error("EMAIL ERROR:", emailError.message);
 
     }
 
     return res.json({
       success: true,
-      message: "Payment verified and saved successfully",
-      payment,
+      message: "Payment verified successfully",
+      payment
     });
 
   } catch (error) {
 
-    console.error("Verify Payment Error:", error);
+    console.error("VERIFY PAYMENT ERROR:", error);
 
     return res.status(500).json({
-      message: "Payment verification failed",
+      message: "Payment verification failed"
     });
 
   }
@@ -172,14 +202,14 @@ export const getMyPayments = async (req, res) => {
       user: req.user._id
     }).sort({ createdAt: -1 });
 
-    return res.json(payments);
+    res.json(payments);
 
   } catch (error) {
 
-    console.error("Get Payments Error:", error);
+    console.error("GET PAYMENTS ERROR:", error);
 
-    return res.status(500).json({
-      message: "Failed to fetch payments",
+    res.status(500).json({
+      message: "Failed to fetch payments"
     });
 
   }
@@ -197,7 +227,7 @@ export const downloadInvoice = async (req, res) => {
 
     if (!payment) {
       return res.status(404).json({
-        message: "Payment not found",
+        message: "Payment not found"
       });
     }
 
@@ -245,13 +275,12 @@ export const downloadInvoice = async (req, res) => {
 
   } catch (error) {
 
-    console.error("Invoice Error:", error);
+    console.error("INVOICE ERROR:", error);
 
-    return res.status(500).json({
-      message: "Invoice generation failed",
+    res.status(500).json({
+      message: "Invoice generation failed"
     });
 
   }
 
 };
-
