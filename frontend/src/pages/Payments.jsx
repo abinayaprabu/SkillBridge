@@ -16,32 +16,55 @@ export default function Payments() {
 
   const fetchPayments = async () => {
     try {
-      const { data } = await axios.get("/payments/my-payments");
+
+      const token = localStorage.getItem("token");
+
+      const { data } = await axios.get("/payments/my-payments", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
       setHistory(data);
+
     } catch (error) {
+
       console.error("Fetch Payments Error:", error);
+
     }
   };
 
   const downloadInvoice = async (paymentId) => {
     try {
+
+      const token = localStorage.getItem("token");
+
       const response = await axios.get(`/payments/invoice/${paymentId}`, {
         responseType: "blob",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
 
       const link = document.createElement("a");
+
       link.href = url;
       link.setAttribute("download", `invoice-${paymentId}.pdf`);
 
       document.body.appendChild(link);
+
       link.click();
+
       link.remove();
 
     } catch (error) {
+
       console.error("Invoice Download Error:", error);
+
       alert("Failed to download invoice");
+
     }
   };
 
@@ -49,24 +72,25 @@ export default function Payments() {
 
     if (!cartItems.length) return alert("Cart is empty");
 
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      return alert("Session expired. Please login again.");
-    }
-
     try {
 
       setLoading(true);
 
-      // STEP 1: Create Razorpay Order
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        alert("Session expired. Please login again.");
+        return;
+      }
+
+      // STEP 1: CREATE ORDER
       const { data } = await axios.post(
         "/payments/create-order",
         { amount: total },
         {
           headers: {
-            Authorization: `Bearer ${token}`,
-          },
+            Authorization: `Bearer ${token}`
+          }
         }
       );
 
@@ -78,11 +102,12 @@ export default function Payments() {
         description: "Course Purchase",
         order_id: data.orderId,
 
-        handler: async (response) => {
+        handler: async function (response) {
 
           try {
 
-            // STEP 2: Verify Payment
+            const freshToken = localStorage.getItem("token");
+
             await axios.post(
               "/payments/verify",
               {
@@ -92,13 +117,13 @@ export default function Payments() {
                 amount: total,
                 courses: cartItems.map((item) => ({
                   title: item.title,
-                  price: item.price,
-                })),
+                  price: item.price
+                }))
               },
               {
                 headers: {
-                  Authorization: `Bearer ${token}`,
-                },
+                  Authorization: `Bearer ${freshToken}`
+                }
               }
             );
 
@@ -111,27 +136,29 @@ export default function Payments() {
 
             console.error("Verification Error:", err.response?.data || err.message);
 
-            alert("Payment verification failed.");
+            alert(err.response?.data?.message || "Payment verification failed");
 
           }
 
         },
 
         theme: {
-          color: "#7c3aed",
+          color: "#7c3aed"
         },
 
         modal: {
-          ondismiss: () => setLoading(false),
-        },
+          ondismiss: () => setLoading(false)
+        }
+
       };
 
       if (!window.Razorpay) {
-        alert("Razorpay SDK failed to load.");
+        alert("Razorpay SDK failed to load");
         return;
       }
 
       const razor = new window.Razorpay(options);
+
       razor.open();
 
     } catch (error) {
@@ -154,6 +181,7 @@ export default function Payments() {
       <h1 className="text-3xl font-bold mb-8">Payments 💳</h1>
 
       {cartItems.length > 0 && (
+
         <div className="bg-white p-6 rounded-xl shadow mb-10 border-l-4 border-purple-600">
 
           <h2 className="font-bold mb-4">Checkout Summary</h2>
@@ -171,6 +199,7 @@ export default function Payments() {
           </button>
 
         </div>
+
       )}
 
       <h2 className="text-2xl font-semibold mb-4 text-gray-700">
@@ -178,10 +207,13 @@ export default function Payments() {
       </h2>
 
       {history.length === 0 ? (
+
         <p className="text-gray-500 italic">
           No transaction history found.
         </p>
+
       ) : (
+
         <div className="grid gap-6">
 
           {history.map((payment) => (
@@ -219,6 +251,7 @@ export default function Payments() {
           ))}
 
         </div>
+
       )}
 
     </div>
