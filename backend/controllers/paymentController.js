@@ -1,4 +1,8 @@
-import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import Payment from "../models/Payment.js";
+import User from "../models/User.js";
+import Skill from "../models/Skill.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
 export const verifyPayment = async (req, res) => {
   try {
@@ -11,19 +15,11 @@ export const verifyPayment = async (req, res) => {
       courses
     } = req.body;
 
-    // 🔐 Get token manually
-    const token = req.headers.authorization?.split(" ")[1];
-
-    if (!token) {
-      return res.status(401).json({ message: "Token missing" });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const user = await User.findById(decoded.id);
+    // ✅ User already available from protect middleware
+    const user = req.user;
 
     if (!user) {
-      return res.status(401).json({ message: "User not found" });
+      return res.status(401).json({ message: "User not authenticated" });
     }
 
     // 🔐 Verify Razorpay signature
