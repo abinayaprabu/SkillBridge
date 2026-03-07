@@ -1,26 +1,20 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const sendEmail = async (to, subject, text) => {
   try {
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
+    const response = await resend.emails.send({
+      from: "SkillBridge <onboarding@resend.dev>",
+      to: to,
+      subject: subject,
+      html: `<p>${text.replace(/\n/g, "<br>")}</p>`
     });
 
-    await transporter.sendMail({
-      from: `"SkillBridge" <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      text
-    });
-
-    console.log("Email sent successfully");
+    console.log("Email sent:", response);
 
   } catch (error) {
-    console.error("Email Error:", error.message);
+    console.error("Email Error:", error);
   }
 };
