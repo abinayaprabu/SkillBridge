@@ -5,16 +5,16 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export const sendEmail = async (to, subject, text) => {
   try {
 
-    const response = await resend.emails.send({
+    const data = await resend.emails.send({
       from: "SkillBridge <onboarding@resend.dev>",
-      to: to,
+      to: [to],
       subject: subject,
       html: `<p>${text.replace(/\n/g, "<br>")}</p>`
     });
 
-    console.log("Email sent:", response);
+    console.log("Email sent:", data);
 
   } catch (error) {
-    console.error("Email Error:", error);
+    console.error("Email Error FULL:", error);
   }
 };
