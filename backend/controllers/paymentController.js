@@ -133,17 +133,17 @@ export const verifyPayment = async (req, res) => {
       );
     }
 
-    // Send email
+    // ================= SEND EMAIL (BACKGROUND) =================
     try {
 
       const user = await User.findById(req.user._id);
 
-    if (user?.email) {
+      if (user?.email) {
 
-  await sendEmail(
-    user.email,
-    "Course Purchase Successful 🎉",
-    `Hello ${user.name},
+        sendEmail(
+          user.email,
+          "Course Purchase Successful 🎉",
+          `Hello ${user.name},
 
 Your payment was successful!
 
@@ -154,15 +154,16 @@ Amount Paid: ₹ ${amount}
 You can now access your purchased courses.
 
 Thank you for choosing SkillBridge 🚀`
-  );
+        ).catch(err => console.error("EMAIL ERROR:", err.message));
 
-}
+      }
 
     } catch (err) {
 
       console.error("EMAIL ERROR:", err.message);
 
     }
+    // ===========================================================
 
     res.json({
       success: true,
