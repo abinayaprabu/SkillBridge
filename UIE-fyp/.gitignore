@@ -1,0 +1,20 @@
+# UIEB images (~1.5 GB) must never be committed.
+dataset/raw-890/
+dataset/reference-890/
+dataset/preprocessed/
+dataset/challenging-60/
+dataset/_uieb_mirror.tar.gz
+dataset/_tmp_uieb/
+# Large binary artefacts — documented, reproducible, not committed.
+models/
+*.pt
+*.pth
+*.pkl
+*.joblib
+# Python / OS noise.
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+.DS_Store
