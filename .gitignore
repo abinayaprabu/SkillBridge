@@ -54,3 +54,5 @@ lerna-debug.log*
 *.ntvs*
 *.njsproj
 *.sln
+# UIE-fyp lives in its own repo; local training copy only (temporary)
+/UIE-fyp/
